@@ -156,7 +156,7 @@ router.post('/verify-code', async (req, res) => {
     // Find the active login request for this user
     const loginRequest = await LoginRequest.findOne({
       username: trimmedUsername,
-      status: 'approved',
+     
     });
 
     if (!loginRequest) {
