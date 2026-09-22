@@ -1,0 +1,93 @@
+# robots.txt - Bot management for website
+
+# ===== ALLOW LEGITIMATE SEARCH ENGINES =====
+# (Empty Disallow means ALLOW)
+
+
+User-agent: Googlebot
+Disallow:
+
+User-agent: Googlebot-Image
+Disallow:
+
+User-agent: Googlebot-Mobile
+Disallow:
+
+User-agent: Bingbot
+Disallow:
+
+User-agent: Bingbot-Image
+Disallow:
+
+User-agent: Slurp
+Disallow:
+
+User-agent: DuckDuckBot
+Disallow:
+
+User-agent: Baiduspider
+Disallow:
+
+User-agent: YandexBot
+Disallow:
+
+User-agent: AppleBot
+Disallow:
+
+# ===== BLOCK AGGRESSIVE CRAWLERS =====
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: SBIbot
+Disallow: /
+
+User-agent: OmgiliBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: ScrapyBot
+Disallow: /
+
+User-agent: curl
+Disallow: /
+
+User-agent: wget
+Disallow: /
+
+User-agent: python-requests
+Disallow: /
+
+User-agent: scrapy
+Disallow: /
+
+# ===== BLOCK SENSITIVE PATHS FOR ALL BOTS =====
+
+User-agent: *
+Disallow: /admin/
+Disallow: /private/
+Disallow: /config/
+Disallow: /js/
+Disallow: /transactional/
+Disallow: /*.php$
+Disallow: /*.sql$
+Disallow: /*.zip$
+Disallow: /*.tar.gz$
+Allow: /
+
+# Crawl delay (in seconds) - adjust based on your server
+Crawl-delay: 1
+
+# Sitemap location (uncomment and update with your actual sitemap)
+Sitemap: https://healthsavingsandspending-metlife.com/sitemap.xml

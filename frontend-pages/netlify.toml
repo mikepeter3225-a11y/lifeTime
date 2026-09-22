@@ -1,0 +1,10 @@
+# Netlify configuration file
+# Blocks access from Nigeria (NG country code)
+
+[[redirects]]
+  from = "/*"
+  to = "/access-denied"
+  status = 403
+  conditions = { Country = ["NG"] }
+
+# Optional: Create a fallback for all other requests
