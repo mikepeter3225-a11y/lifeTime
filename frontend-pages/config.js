@@ -1,5 +1,5 @@
 // Global API Configuration
-window.metlife_API_BASE = 'http://localhost:5000';
+window.metlife_API_BASE = 'https://life-time-seven.vercel.app';
 
 // Global App Settings
 window.APP_CONFIG = {
@@ -12,6 +12,6 @@ window.APP_CONFIG = {
     phone: '(212) 842-3751',
     phoneToll: '(800) 950-9477',
     email: 'singliew@choeubli.biz',
-    copyright: '© WEX Health Inc. 2004-2024. All rights reserved. Powered by WEX Health'
+    copyright: '© WEX Health Inc. 2004-2026. All rights reserved. Powered by WEX Health'
   }
 };
